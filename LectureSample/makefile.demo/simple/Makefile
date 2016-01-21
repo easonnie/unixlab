@@ -1,0 +1,1 @@
+testit: testit.o
