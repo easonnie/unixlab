@@ -7,95 +7,74 @@
 #include <stdio.h>
 #include <pwd.h>
 #include <grp.h>
+#include <string.h>
 
 /*
  * Function for identify file mode.
  */
 char *getFileMode(mode_t m);
+void formatOutput(char *pathname, struct stat *buf);
 void setFileMode(mode_t m, char *pmode, int *vmode);
 
 int main(int argc, char *argv[]) {
-    char *pathname = argv[1];
-    //int pathnameLen = strlen(pathname);
-
-    if (pathname == NULL) {
-        write(2, "No pathname\n", 20);
+    if (argc > 3 || argc == 1) {
+        fprintf(stderr, "Illegal argument number.\n");
+        exit(1);
     }
 
-    printf("Params Num : %d\n", argc - 1);
+    if (argc == 2) {
+        char *pathname = argv[1];
+        //int pathnameLen = strlen(pathname);
 
-    printf("Path name is : %s\n", argv[1]);
+        if (pathname == NULL) {
+            write(2, "No pathname\n", 20);
+        }
 
-    //test for file_mode
-    struct stat *buf = malloc(sizeof(struct stat));
+        //printf("Params Num : %d\n", argc - 1);
 
-    if (lstat(pathname, buf) != 0) {
-        printf("File error.");
-        exit(errno);
+        //printf("Path name is : %s\n", argv[1]);
+
+        //test for file_mode
+        struct stat *buf = malloc(sizeof(struct stat));
+
+        if (lstat(pathname, buf) != 0) {
+            printf("File error.\n");
+            exit(errno);
+        }
+
+        formatOutput(pathname, buf);
+
+        free(buf);
+        exit(EXIT_SUCCESS);
+    } else {
+        char *option = argv[1];
+        if (strcmp(option, "-L") != 0) {
+            fprintf(stderr, "Invalid option %s\n", option);
+        } else {
+            char *pathname = argv[2];
+
+            if (pathname == NULL) {
+                write(2, "No pathname\n", 20);
+            }
+
+            //printf("Params Num : %d\n", argc - 1);
+
+            //printf("Path name is : %s\n", argv[1]);
+
+            //test for file_mode
+            struct stat *buf = malloc(sizeof(struct stat));
+
+            if (stat(pathname, buf) != 0) {
+                printf("File error.\n");
+                exit(errno);
+            }
+
+            formatOutput(pathname, buf);
+
+            free(buf);
+            exit(EXIT_SUCCESS);
+        }
     }
-
-    char *file_mode = getFileMode(buf->st_mode);
-    printf("File mode is : %s\n", file_mode);
-
-    printf("Mode# is : %lo (octal)\n", (unsigned long) buf->st_mode);
-    //end test for file_mode
-
-    //test for dev
-
-    printf("Device : %lx \n", (unsigned long) buf->st_dev);
-    printf("Dev major : %o \n", major(buf->st_dev));
-    printf("Dev minor : %o \n", minor(buf->st_dev));
-
-    printf("dev ID : %lxh/%ldd\n", (long) buf->st_dev, (long) buf->st_dev);
-    //end test for dev
-
-    //test for inode_num
-    printf("File Inode Num is : %ld\n", (long) buf->st_ino);
-    //end test for inode_num
-
-    char mode[11];
-    mode[10] = '\0';
-    int modeNum;
-    setFileMode(buf->st_mode, mode, &modeNum);
-    printf("File Mode : %04o/%s\n", modeNum, mode);
-
-    //printf("Mode : %lo (octal)\n", (unsigned long)buf->st_mode);
-
-    //test for Link count
-    printf("File Link Count is : %ld\n", (long) buf->st_nlink);
-    //end test for Link Count
-
-    //test for UID and GID and Username
-    char *usrName = getpwuid(buf->st_uid)->pw_name;
-    char *grpName = getgrgid(buf->st_gid)->gr_name;
-    printf("UID : %s/%ld, GID : %s/%ld\n", usrName, (long) buf->st_uid, grpName, (long) buf->st_gid);
-    //end test for UID and GID
-
-    //test for I/O block size
-    printf("Block size is : %ld\n", (long) buf->st_blksize);
-    //end test for I/0 block size
-
-    //test for File size
-    printf("File size is : %ld\n", (long) buf->st_size);
-    //end test for File size
-
-    //test for Blocks allocated
-    printf("Blocks allocated : %lld\n", (long long) buf->st_blocks);
-    //end test for Blocks allocated
-
-    //test for Last status change
-    printf("Change time : %s", ctime(&buf->st_ctime));
-    //end test for last status change
-
-    //test for Last status change
-    printf("Access time : %s", ctime(&buf->st_atime));
-    //end test for last status change
-
-    //test for Last status change
-    printf("Modify time : %s", ctime(&buf->st_mtime));
-    //end test for last status change
-
-    free(buf);
     exit(EXIT_SUCCESS);
 }
 
@@ -115,6 +94,38 @@ char *getFileMode(mode_t m) {
     } else {
         return "unknown file mode";
     }
+}
+
+void formatOutput(char *pathname, struct stat *buf) {
+    char mode[11];
+    mode[10] = '\0';
+    int modeNum;
+    setFileMode(buf->st_mode, mode, &modeNum);
+
+    char *usrName = getpwuid(buf->st_uid)->pw_name;
+    char *grpName = getgrgid(buf->st_gid)->gr_name;
+
+    printf("  File: \"%s\"\n"
+           "  Size: %-16ldBlocks: %-11lldIO Block: %-7ld%-s\n"
+           "Device: %lxh/%ldd Inode: %-13ldLinks: %-ld    \n"
+           "Access: (%04o/%s)  Uid: (%5ld/%8s)   Gid: (%5ld/%8s)\n"
+           "Access: %s"
+           "Modify: %s"
+           "Change: %s",
+            pathname,
+           (long) buf->st_size,
+           (long long) buf->st_blocks,
+           (long) buf->st_blksize,
+           getFileMode(buf->st_mode),
+           (long) buf->st_dev, (long) buf->st_dev,
+           (long) buf->st_ino,
+           (long) buf->st_nlink,
+           modeNum, mode,
+           (long) buf->st_uid, usrName, (long) buf->st_gid, grpName,
+           ctime(&buf->st_atime),
+           ctime(&buf->st_mtime),
+           ctime(&buf->st_ctime)
+    );
 }
 
 void setFileMode(mode_t m, char *pmode, int *vmode) {
@@ -205,4 +216,69 @@ void setFileMode(mode_t m, char *pmode, int *vmode) {
     Test for a regular file.
     S_ISLNK(m)
     Test for a symbolic link.
+ */
+
+/*
+ * char *file_mode = getFileMode(buf->st_mode);
+    printf("File mode is : %s\n", file_mode);
+
+    printf("Mode# is : %lo (octal)\n", (unsigned long) buf->st_mode);
+    //end test for file_mode
+
+    //test for dev
+
+    printf("Device : %lx \n", (unsigned long) buf->st_dev);
+    printf("Dev major : %o \n", major(buf->st_dev));
+    printf("Dev minor : %o \n", minor(buf->st_dev));
+
+    printf("dev ID : %lxh/%ldd\n", (long) buf->st_dev, (long) buf->st_dev);
+    //end test for dev
+
+    //test for inode_num
+    printf("File Inode Num is : %ld\n", (long) buf->st_ino);
+    //end test for inode_num
+
+    char mode[11];
+    mode[10] = '\0';
+    int modeNum;
+    setFileMode(buf->st_mode, mode, &modeNum);
+    printf("File Mode : %04o/%s\n", modeNum, mode);
+
+    //printf("Mode : %lo (octal)\n", (unsigned long)buf->st_mode);
+
+    //test for Link count
+    printf("File Link Count is : %ld\n", (long) buf->st_nlink);
+    //end test for Link Count
+
+    //test for UID and GID and Username
+    char *usrName = getpwuid(buf->st_uid)->pw_name;
+    char *grpName = getgrgid(buf->st_gid)->gr_name;
+    printf("UID : %s/%ld, GID : %s/%ld\n", usrName, (long) buf->st_uid, grpName, (long) buf->st_gid);
+    //end test for UID and GID
+
+    //test for I/O block size
+    printf("Block size is : %ld\n", (long) buf->st_blksize);
+    //end test for I/0 block size
+
+    //test for File size
+    printf("File size is : %ld\n", (long) buf->st_size);
+    //end test for File size
+
+    //test for Blocks allocated
+    printf("Blocks allocated : %lld\n", (long long) buf->st_blocks);
+    //end test for Blocks allocated
+
+    //test for Last status change
+    printf("Change time : %s", ctime(&buf->st_ctime));
+    //end test for last status change
+
+    //test for Last status change
+    printf("Access time : %s", ctime(&buf->st_atime));
+    //end test for last status change
+
+    //test for Last status change
+    printf("Modify time : %s", ctime(&buf->st_mtime));
+    //end test for last status change
+ *
+ *
  */
