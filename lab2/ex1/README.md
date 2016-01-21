@@ -1,4 +1,4 @@
-## My_Stat(lab2-ex2)
+## My_Stat (lab2-ex1)
 ### Command Line Syntax
 `my_stat [-L] <filename>`
 ### Explain
